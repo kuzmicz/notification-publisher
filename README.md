@@ -32,13 +32,6 @@ curl -k -X POST https://localhost/api/create-user \
 -d '{"email": "example@example.com", "phoneNumber": "48321123321"}'
 ```
 
-### Retrieve notifications sent to user:
-Simply paste the following URL into your browser, replacing ``{userId}`` with the one retrieved during user creation.
-```
-https://localhost/api/notifications/user/{userId}
-```
-The User ID should be obtained from the response of the create user request.
-
 ### Sending notifications
 First, ensure that you have already created the user and have obtained the User ID from the response of the user creation request.
 
@@ -46,7 +39,7 @@ Please adjust the following examples to your needs:
 ```
 userId - user ID returned during user creation
 message - message you want to send
-subject - subject of the message (optional for email channel)
+subject - subject of the message (optional for the SMS channel)
 channels - array of channels you want to send notification to (email, sms)
 ```
 #### Notification by email
@@ -74,6 +67,12 @@ curl -k -X POST https://localhost/api/notify \
 -d '{"userId": "1", "message": "Test message", "subject": "test", "channels": ["email", "sms"]}' \
 -w "\nHTTP Status: %{http_code}\n" \
 -s
+```
+
+### Retrieve notifications sent to user:
+Simply paste the following URL into your browser, replacing ``{userId}`` with the one retrieved during user creation.
+```
+https://localhost/api/notifications/user/{userId}
 ```
 
 ### Managing providers
@@ -116,16 +115,15 @@ If a message fails to be processed by all providers, it will be moved to the fai
 If message will be rate limited the proper logs will appear in the console: ``docker-compose logs -f php``
 
 ### Supervisor
-The application uses Supervisor to manage the queue workers. The configuration file is located in ``supervisor/supervisord.conf``.  The worker command is responsible for consuming messages from the async transport and processing them. The worker command is set to run with 2 processes, but this can be adjusted according to the system's capabilities.
+The application uses Supervisor to manage the queue workers. The configuration file is located in ``supervisor/supervisord.conf``.  The worker command is responsible for consuming messages from the transports and processing them. The worker command is set to run with 2 processes, but this can be adjusted according to the system's capabilities. If you change the configuration you have to rebuild the containers.
 
 ## Tests
 
 Run: ``composer test`` inside the directory root.
 
 #### Note
-To make the application production-ready, more tests need to be added beyond the basic primary tests for application classes. Specifically, integration tests for the notification sending process should be implemented. However, I opted not to write these tests due to the time-consuming nature of the task, as my goal was to present a general concept rather than a fully production developed feature set.
+To make the application production-ready, more tests need to be added beyond the basic primary tests for application classes. Specifically, integration tests for the notification sending process should be implemented.
 
-## Notes
 ### Architecture
 The application is based on Symfony 7.1 and uses the Messenger component for handling notifications. The default transport is Redis, and the failure transport is Doctrine, but it can be easily changed to any other transport supported by the Messenger component. The project structure follows DDD and CQRS patterns.
 
