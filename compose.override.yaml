@@ -1,0 +1,20 @@
+# Development environment override
+services:
+  php:
+    build:
+      context: .
+      target: frankenphp_dev
+    volumes:
+      - ./:/app
+      - ./frankenphp/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frankenphp/conf.d/app.dev.ini:/usr/local/etc/php/conf.d/app.dev.ini:ro
+      - ./supervisor/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf:ro
+    environment:
+      MERCURE_EXTRA_DIRECTIVES: demo
+      XDEBUG_MODE: "${XDEBUG_MODE:-debug}"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tty: true
+  database:
+    ports:
+      - "3306"

@@ -1,0 +1,6 @@
+framework:
+    rate_limiter:
+        throttling_configuration:
+            policy: 'token_bucket'
+            limit: 50 
+            rate: { interval: '15 minutes', amount: 1 }

@@ -1,0 +1,104 @@
+# config/packages/test/services_test.yaml
+parameters:
+    notification:
+        channels:
+            email:
+                providers:
+                    - 'smtp'
+                    - 'aws_ses'
+                retry_delay: 60
+            sms:
+                providers:
+                    - 'twilio'
+                retry_delay: 60
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/*'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    Symfony\Component\Messenger\MessageBusInterface $queryBus:
+        alias: 'messenger.query.bus'
+
+    Symfony\Component\Messenger\MessageBusInterface $commandBus:
+        alias: 'messenger.bus.default'
+
+    App\NotificationPublisher\Application\Notification\CommandHandler\SendNotificationCommandHandler:
+        arguments:
+            $notificationRepository: '@App\NotificationPublisher\Infrastructure\Repository\NotificationRepository'
+            $providerFactory: '@app.notification_publisher.service.notification_provider_factory'
+            $userRepository: '@App\NotificationPublisher\Domain\User\UserRepositoryInterface'
+            $logger: '@logger'
+
+    App\NotificationPublisher\Application\User\QueryHandler\GetUserNotificationsQueryHandler:
+        tags:
+            - { name: 'messenger.message_handler', bus: 'messenger.query.bus' }
+    
+    App\NotificationPublisher\Application\User\CommandHandler\CreateUserCommandHandler:
+        tags:
+            - { name: 'messenger.message_handler', bus: 'messenger.bus.default' }
+    
+    App\NotificationPublisher\Application\Middleware\ThrottlingMiddleware:
+        arguments:
+            $limiterFactory: '@limiter.throttling_configuration'
+    
+    PHPMailer\PHPMailer\PHPMailer:
+        class: PHPMailer\PHPMailer\PHPMailer
+        arguments: [ 'true' ]
+    
+    app.notification_publisher.service.notification_provider_factory:
+        class: App\NotificationPublisher\Application\Notification\Service\NotificationProviderFactory
+        arguments:
+            $notificationConfig: '%notification%'
+            $awsSesProvider: '@app.notification_publisher.service.provider.email.aws_ses_provider'
+            $smtpProvider: '@app.notification_publisher.service.provider.email.smtp_provider'
+            $twilioProvider: '@app.notification_publisher.service.provider.sms.twilio_provider'
+    
+    app.notification_publisher.service.provider.email.aws_ses_provider:
+        class: App\NotificationPublisher\Infrastructure\Provider\Email\AwsSesProvider
+        arguments:
+            $sesClient: '@aws.ses_client'
+            $logger: '@logger'
+            $fromEmail: '%env(AWS_SES_FROM_EMAIL)%'
+
+    app.notification_publisher.service.provider.email.smtp_provider:
+        class: App\NotificationPublisher\Infrastructure\Provider\Email\SmtpProvider
+        arguments:
+            $mailer: '@PHPMailer\PHPMailer\PHPMailer'
+            $host: '%env(SMTP_HOST)%'
+            $username: '%env(SMTP_USERNAME)%'
+            $password: '%env(SMTP_PASSWORD)%'
+            $encryption: '%env(SMTP_ENCRYPTION)%'
+            $port: '%env(SMTP_PORT)%'
+            $fromEmail: '%env(SMTP_FROM_EMAIL)%'
+            $fromName: '%env(SMTP_FROM_NAME)%'
+            $logger: '@logger'
+
+    app.notification_publisher.service.provider.sms.twilio_provider:
+        class: App\NotificationPublisher\Infrastructure\Provider\Sms\TwilioProvider
+        arguments:
+            $twilioClient: '@twilio.client'
+            $fromPhoneNumber: '%env(TWILIO_FROM_PHONE_NUMBER)%'
+            $logger: '@logger'
+
+    aws.ses_client:
+        class: Aws\Ses\SesClient
+        arguments:
+            -   version: 'latest'
+                region: '%env(AWS_SES_REGION)%'
+                credentials:
+                    key: '%env(AWS_SES_KEY)%'
+                    secret: '%env(AWS_SES_SECRET)%'
+
+    twilio.client:
+        class: Twilio\Rest\Client
+        arguments:
+            - '%env(TWILIO_SID)%'
+            - '%env(TWILIO_TOKEN)%'

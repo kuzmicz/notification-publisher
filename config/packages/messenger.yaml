@@ -1,0 +1,38 @@
+framework:
+    messenger:
+        default_bus: messenger.bus.default
+
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    max_delay: 10000
+                    multiplier: 2
+            failed:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN_FAILED)%'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 5000
+                    max_delay: 60000
+                    multiplier: 2
+
+        failure_transport: failed
+
+        routing:
+            'App\NotificationPublisher\Application\Notification\Command\SendNotificationCommand': async
+            'Symfony\Component\Messenger\Message\RedispatchMessage': failed
+
+        buses:
+            messenger.bus.default:
+                middleware:
+#                    - validation
+#                    - doctrine_transaction
+#                    - dispatch_after_current_bus
+                    - App\NotificationPublisher\Application\Middleware\ThrottlingMiddleware
+                    
+            messenger.query.bus:
+                default_middleware: allow_no_handlers
+                middleware:
+                    - validation
